@@ -1,270 +1,144 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>My Stock Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Dashboard</title>
 
-  <!-- ===================== -->
-  <!-- CSS START -->
-  <!-- ===================== -->
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    input, button { margin: 5px; padding: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #f2f2f2; }
-    .green { color: green; }
-    .red { color: red; }
-    .table-container {
-     max-height: 400px;
-     overflow-y: auto;
-  border: 1px solid #ccc;
-}
-  </style>
-  <!-- ===================== -->
-  <!-- CSS END -->
-  <!-- ===================== -->
+<style>
+body { font-family: Arial; padding: 15px; }
+input, button { padding: 8px; margin: 5px 0; width: 100%; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+th { background: #f2f2f2; }
+.green { color: green; }
+.red { color: red; }
+.card { border:1px solid #ccc; padding:10px; border-radius:8px; }
+</style>
 </head>
 
 <body>
 
-<!-- ===================== -->
-<!-- INPUT SECTION START -->
-<!-- ===================== -->
-<h2>📊 Stock Entry</h2>
+<h2>📊 Stock Dashboard</h2>
 
-<input id="date" type="date">
-<input id="ticker" placeholder="Ticker">
-<input id="owner" placeholder="Owner (Self / Wife / Son)">
-<input id="rate" type="number" placeholder="Buy Rate">
-<input id="qty" type="number" placeholder="Qty">
-<input id="cmp" type="number" placeholder="CMP">
+<div class="card">
+  <input id="date" type="date">
+  <input id="ticker" placeholder="Ticker (HDFCBANK)">
+  <input id="owner" placeholder="Owner (Self / Wife / Son)">
+  <input id="rate" type="number" placeholder="Buy Rate">
+  <input id="qty" type="number" placeholder="Qty">
+  <button onclick="addTrade()">➕ Add Stock</button>
+</div>
 
-<button onclick="addTrade()">Add</button>
-<button onclick="exportCSV()">Export Calculated CSV</button>
-
-<br><br>
-<input id="searchTicker" placeholder="Search Ticker" onkeyup="renderTable()">
-<!-- ===================== -->
-<!-- INPUT SECTION END -->
-<!-- ===================== -->
-
-
-<!-- ===================== -->
-<!-- MAIN TABLE START -->
-<!-- ===================== -->
-<table>
-  <thead>
-    <tr>
-      <th>Date</th>
-      <th>Ticker</th>
-      <th>Owner</th>
-      <th>Rate</th>
-      <th>Qty</th>
-      <th>Invested</th>
-      <th>CMP</th>
-      <th>P/L</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody id="tradeTable"></tbody>
-</table>
+<input id="search" placeholder="Search ticker" onkeyup="render()">
 
 <h3>
-  Total Invested: ₹<span id="totalInvested">0</span> |
-  Total P/L: ₹<span id="totalProfit">0</span>
+Total Invested ₹<span id="totalInv">0</span> |
+P/L ₹<span id="totalPL">0</span>
 </h3>
-<div class="table-container">
-  <table>
-    ...
-  </table>
-</div>
-<!-- ===================== -->
-<!-- MAIN TABLE END -->
-<!-- ===================== -->
 
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Ticker</th><th>Owner</th>
+<th>Rate</th><th>Qty</th><th>Invested</th>
+<th>CMP</th><th>P/L</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
 
-<!-- ===================== -->
-<!-- OWNER SUMMARY START -->
-<!-- ===================== -->
 <h3>👨‍👩‍👧 Owner-wise Summary</h3>
 <table>
-  <thead>
-    <tr>
-      <th>Owner</th>
-      <th>Total Invested</th>
-      <th>Total P/L</th>
-    </tr>
-  </thead>
-  <tbody id="ownerSummary"></tbody>
+<thead>
+<tr><th>Owner</th><th>Invested</th><th>P/L</th></tr>
+</thead>
+<tbody id="ownerSummary"></tbody>
 </table>
-<!-- ===================== -->
-<!-- OWNER SUMMARY END -->
-<!-- ===================== -->
 
-
-<!-- ===================== -->
-<!-- JAVASCRIPT START -->
-<!-- ===================== -->
 <script>
-let trades = [];
+/* ===== CONFIG ===== */
+const WEB_APP_URL = "https://sharedemo14.github.io/stock-dashboard/";
 
 /* ===== ADD TRADE ===== */
 function addTrade() {
-  trades.push({
+  const data = {
     date: date.value,
     ticker: ticker.value.toUpperCase(),
     owner: owner.value,
     rate: Number(rate.value),
-    qty: Number(qty.value),
-    cmp: Number(cmp.value)
+    qty: Number(qty.value)
+  };
+
+  fetch(WEB_APP_URL, {
+    method: "POST",
+    body: JSON.stringify(data)
+  }).then(() => {
+    clearInputs();
+    loadData();
   });
-  clearInputs();
-  saveLocal();
-  renderTable();
 }
 
-/* ===== CLEAR INPUTS ===== */
-function clearInputs() {
-  date.value = ticker.value = owner.value = rate.value = qty.value = cmp.value = "";
+/* ===== LOAD DATA ===== */
+function loadData() {
+  fetch(WEB_APP_URL)
+    .then(res => res.json())
+    .then(rows => {
+      window.rows = rows;
+      render();
+    });
 }
 
-/* ===== RENDER TABLE ===== */
-function renderTable() {
-  let search = searchTicker.value.toUpperCase();
-  tradeTable.innerHTML = "";
+/* ===== RENDER ===== */
+function render() {
+  let q = search.value.toUpperCase();
+  table.innerHTML = "";
+  ownerSummary.innerHTML = "";
 
-  let filtered = trades.filter(t => t.ticker.includes(search));
-  let invested = 0, pl = 0;
+  let totalInv = 0, totalPL = 0;
+  let owners = {};
 
-  filtered.forEach((t, i) => {
-    let rowPL = (t.cmp - t.rate) * t.qty;
-    invested += t.rate * t.qty;
-    pl += rowPL;
+  rows.filter(r => r[1].includes(q)).forEach(r => {
+    let invested = r[3] * r[4];
+    let pl = r[7];
 
-    tradeTable.innerHTML += `
+    totalInv += invested;
+    totalPL += pl;
+
+    if (!owners[r[2]]) owners[r[2]] = { inv:0, pl:0 };
+    owners[r[2]].inv += invested;
+    owners[r[2]].pl += pl;
+
+    table.innerHTML += `
       <tr>
-        <td>${t.date}</td>
-        <td>${t.ticker}</td>
-        <td>${t.owner}</td>
-        <td>${t.rate}</td>
-        <td>${t.qty}</td>
-        <td>${t.rate * t.qty}</td>
-        <td>${t.cmp}</td>
-        <td class="${rowPL >= 0 ? 'green' : 'red'}">${rowPL}</td>
-        <td><button onclick="deleteTrade(${i})">🗑</button></td>
+        <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
+        <td>${r[3]}</td><td>${r[4]}</td>
+        <td>${invested}</td><td>${r[6]}</td>
+        <td class="${pl>=0?'green':'red'}">${pl}</td>
       </tr>`;
   });
 
-  totalInvested.innerText = invested;
-  totalProfit.innerText = pl;
-  renderOwnerSummary(filtered);
-}
+  totalInvSpan = document.getElementById("totalInv");
+  totalPLSpan = document.getElementById("totalPL");
+  totalInvSpan.innerText = totalInv;
+  totalPLSpan.innerText = totalPL;
 
-/* ===== DELETE ===== */
-function deleteTrade(i) {
-  trades.splice(i, 1);
-  saveLocal();
-  renderTable();
-}
-
-/* ===== OWNER SUMMARY ===== */
-function renderOwnerSummary(rows) {
-  let summary = {};
-  rows.forEach(r => {
-    if (!summary[r.owner]) summary[r.owner] = { invested: 0, pl: 0 };
-    summary[r.owner].invested += r.rate * r.qty;
-    summary[r.owner].pl += (r.cmp - r.rate) * r.qty;
-  });
-
-  ownerSummary.innerHTML = "";
-  for (let o in summary) {
+  for (let o in owners) {
     ownerSummary.innerHTML += `
       <tr>
         <td>${o}</td>
-        <td>${summary[o].invested}</td>
-        <td class="${summary[o].pl >= 0 ? 'green' : 'red'}">${summary[o].pl}</td>
+        <td>${owners[o].inv}</td>
+        <td class="${owners[o].pl>=0?'green':'red'}">${owners[o].pl}</td>
       </tr>`;
   }
 }
 
-/* ===== AUTO LOAD CSV ===== */
-window.onload = () => {
-  loadLocal();
-
-  fetch("stocks.csv")
-    .then(r => r.text())
-    .then(t => {
-      let rows = t.trim().split("\n").slice(1);
-      rows.forEach(r => {
-        let c = r.includes(",") ? r.split(",") : r.split("\t");
-
-        // Avoid duplicates
-        let exists = trades.some(tr =>
-          tr.date === c[0] &&
-          tr.ticker === c[1] &&
-          tr.rate == c[3] &&
-          tr.qty == c[4]
-        );
-
-        if (!exists) {
-          trades.push({
-            date: c[0],
-            ticker: c[1],
-            owner: c[2],
-            rate: Number(c[3]),
-            qty: Number(c[4]),
-            cmp: Number(c[5])
-          });
-        }
-      });
-
-      saveLocal();
-      renderTable();
-    });
-};
-/* ===== EXPORT CSV ===== */
-function exportCSV() {
-  let csv = "Date,Ticker,Owner,Rate,Qty,Invested,CMP,P/L\n";
-  trades.forEach(r => {
-    csv += `${r.date},${r.ticker},${r.owner},${r.rate},${r.qty},${r.rate*r.qty},${r.cmp},${(r.cmp-r.rate)*r.qty}\n`;
-  });
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv]));
-  a.download = "calculated_results.csv";
-  a.click();
+/* ===== HELPERS ===== */
+function clearInputs() {
+  date.value = ticker.value = owner.value = rate.value = qty.value = "";
 }
 
-/* ===== SAVE TO LOCAL STORAGE ===== */
-function saveLocal() {
-  localStorage.setItem("myTrades", JSON.stringify(trades));
-}
-
-/* ===== LOAD FROM LOCAL STORAGE ===== */
-function loadLocal() {
-  let saved = localStorage.getItem("myTrades");
-  if (saved) {
-    trades = JSON.parse(saved);
-  }
-}
-
-
+loadData();
 </script>
-<!-- ===================== -->
-<!-- JAVASCRIPT END -->
-<!-- ===================== -->
-
-<!-- ===================== -->
-<!-- ACTION BUTTONS START -->
-<!-- ===================== -->
-
-<button onclick="exportCSV()">⬇ Export Calculated CSV</button>
-<button onclick="resetDashboard()" style="background:#ffdddd;">
-  🔄 Reset Dashboard
-</button>
-
-<!-- ===================== -->
-<!-- ACTION BUTTONS END -->
-<!-- ===================== -->
 
 </body>
 </html>
