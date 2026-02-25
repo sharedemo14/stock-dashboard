@@ -1,10 +1,270 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Stock Dashboard</title>
+  <title>My Stock Dashboard</title>
+
+  <!-- ===================== -->
+  <!-- CSS START -->
+  <!-- ===================== -->
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, button { margin: 5px; padding: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f2f2f2; }
+    .green { color: green; }
+    .red { color: red; }
+    .table-container {
+     max-height: 400px;
+     overflow-y: auto;
+  border: 1px solid #ccc;
+}
+  </style>
+  <!-- ===================== -->
+  <!-- CSS END -->
+  <!-- ===================== -->
 </head>
+
 <body>
-  <h1>✅ Stock Dashboard Live</h1>
-  <p>If you can see this, index.html is working correctly.</p>
+
+<!-- ===================== -->
+<!-- INPUT SECTION START -->
+<!-- ===================== -->
+<h2>📊 Stock Entry</h2>
+
+<input id="date" type="date">
+<input id="ticker" placeholder="Ticker">
+<input id="owner" placeholder="Owner (Self / Wife / Son)">
+<input id="rate" type="number" placeholder="Buy Rate">
+<input id="qty" type="number" placeholder="Qty">
+<input id="cmp" type="number" placeholder="CMP">
+
+<button onclick="addTrade()">Add</button>
+<button onclick="exportCSV()">Export Calculated CSV</button>
+
+<br><br>
+<input id="searchTicker" placeholder="Search Ticker" onkeyup="renderTable()">
+<!-- ===================== -->
+<!-- INPUT SECTION END -->
+<!-- ===================== -->
+
+
+<!-- ===================== -->
+<!-- MAIN TABLE START -->
+<!-- ===================== -->
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Ticker</th>
+      <th>Owner</th>
+      <th>Rate</th>
+      <th>Qty</th>
+      <th>Invested</th>
+      <th>CMP</th>
+      <th>P/L</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="tradeTable"></tbody>
+</table>
+
+<h3>
+  Total Invested: ₹<span id="totalInvested">0</span> |
+  Total P/L: ₹<span id="totalProfit">0</span>
+</h3>
+<div class="table-container">
+  <table>
+    ...
+  </table>
+</div>
+<!-- ===================== -->
+<!-- MAIN TABLE END -->
+<!-- ===================== -->
+
+
+<!-- ===================== -->
+<!-- OWNER SUMMARY START -->
+<!-- ===================== -->
+<h3>👨‍👩‍👧 Owner-wise Summary</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Owner</th>
+      <th>Total Invested</th>
+      <th>Total P/L</th>
+    </tr>
+  </thead>
+  <tbody id="ownerSummary"></tbody>
+</table>
+<!-- ===================== -->
+<!-- OWNER SUMMARY END -->
+<!-- ===================== -->
+
+
+<!-- ===================== -->
+<!-- JAVASCRIPT START -->
+<!-- ===================== -->
+<script>
+let trades = [];
+
+/* ===== ADD TRADE ===== */
+function addTrade() {
+  trades.push({
+    date: date.value,
+    ticker: ticker.value.toUpperCase(),
+    owner: owner.value,
+    rate: Number(rate.value),
+    qty: Number(qty.value),
+    cmp: Number(cmp.value)
+  });
+  clearInputs();
+  saveLocal();
+  renderTable();
+}
+
+/* ===== CLEAR INPUTS ===== */
+function clearInputs() {
+  date.value = ticker.value = owner.value = rate.value = qty.value = cmp.value = "";
+}
+
+/* ===== RENDER TABLE ===== */
+function renderTable() {
+  let search = searchTicker.value.toUpperCase();
+  tradeTable.innerHTML = "";
+
+  let filtered = trades.filter(t => t.ticker.includes(search));
+  let invested = 0, pl = 0;
+
+  filtered.forEach((t, i) => {
+    let rowPL = (t.cmp - t.rate) * t.qty;
+    invested += t.rate * t.qty;
+    pl += rowPL;
+
+    tradeTable.innerHTML += `
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.ticker}</td>
+        <td>${t.owner}</td>
+        <td>${t.rate}</td>
+        <td>${t.qty}</td>
+        <td>${t.rate * t.qty}</td>
+        <td>${t.cmp}</td>
+        <td class="${rowPL >= 0 ? 'green' : 'red'}">${rowPL}</td>
+        <td><button onclick="deleteTrade(${i})">🗑</button></td>
+      </tr>`;
+  });
+
+  totalInvested.innerText = invested;
+  totalProfit.innerText = pl;
+  renderOwnerSummary(filtered);
+}
+
+/* ===== DELETE ===== */
+function deleteTrade(i) {
+  trades.splice(i, 1);
+  saveLocal();
+  renderTable();
+}
+
+/* ===== OWNER SUMMARY ===== */
+function renderOwnerSummary(rows) {
+  let summary = {};
+  rows.forEach(r => {
+    if (!summary[r.owner]) summary[r.owner] = { invested: 0, pl: 0 };
+    summary[r.owner].invested += r.rate * r.qty;
+    summary[r.owner].pl += (r.cmp - r.rate) * r.qty;
+  });
+
+  ownerSummary.innerHTML = "";
+  for (let o in summary) {
+    ownerSummary.innerHTML += `
+      <tr>
+        <td>${o}</td>
+        <td>${summary[o].invested}</td>
+        <td class="${summary[o].pl >= 0 ? 'green' : 'red'}">${summary[o].pl}</td>
+      </tr>`;
+  }
+}
+
+/* ===== AUTO LOAD CSV ===== */
+window.onload = () => {
+  loadLocal();
+
+  fetch("stocks.csv")
+    .then(r => r.text())
+    .then(t => {
+      let rows = t.trim().split("\n").slice(1);
+      rows.forEach(r => {
+        let c = r.includes(",") ? r.split(",") : r.split("\t");
+
+        // Avoid duplicates
+        let exists = trades.some(tr =>
+          tr.date === c[0] &&
+          tr.ticker === c[1] &&
+          tr.rate == c[3] &&
+          tr.qty == c[4]
+        );
+
+        if (!exists) {
+          trades.push({
+            date: c[0],
+            ticker: c[1],
+            owner: c[2],
+            rate: Number(c[3]),
+            qty: Number(c[4]),
+            cmp: Number(c[5])
+          });
+        }
+      });
+
+      saveLocal();
+      renderTable();
+    });
+};
+/* ===== EXPORT CSV ===== */
+function exportCSV() {
+  let csv = "Date,Ticker,Owner,Rate,Qty,Invested,CMP,P/L\n";
+  trades.forEach(r => {
+    csv += `${r.date},${r.ticker},${r.owner},${r.rate},${r.qty},${r.rate*r.qty},${r.cmp},${(r.cmp-r.rate)*r.qty}\n`;
+  });
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv]));
+  a.download = "calculated_results.csv";
+  a.click();
+}
+
+/* ===== SAVE TO LOCAL STORAGE ===== */
+function saveLocal() {
+  localStorage.setItem("myTrades", JSON.stringify(trades));
+}
+
+/* ===== LOAD FROM LOCAL STORAGE ===== */
+function loadLocal() {
+  let saved = localStorage.getItem("myTrades");
+  if (saved) {
+    trades = JSON.parse(saved);
+  }
+}
+
+
+</script>
+<!-- ===================== -->
+<!-- JAVASCRIPT END -->
+<!-- ===================== -->
+
+<!-- ===================== -->
+<!-- ACTION BUTTONS START -->
+<!-- ===================== -->
+
+<button onclick="exportCSV()">⬇ Export Calculated CSV</button>
+<button onclick="resetDashboard()" style="background:#ffdddd;">
+  🔄 Reset Dashboard
+</button>
+
+<!-- ===================== -->
+<!-- ACTION BUTTONS END -->
+<!-- ===================== -->
+
 </body>
 </html>
