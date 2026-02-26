@@ -135,7 +135,13 @@ function saveTrade() {
     rate: Number(rate.value),
     qty: Number(qty.value)
   };
-
+// ===== EDIT MODE RESET =====
+if (editIndex !== null) {
+  editIndex = null;
+  date.disabled = false;
+  ticker.disabled = false;
+  owner.disabled = false;
+}
   fetch(WEB_APP_URL + "?action=save", {
     method: "POST",
     body: JSON.stringify(payload)
@@ -180,9 +186,10 @@ function renderTable() {
           <td>${t.invested}</td>
           <td>${t.cmp}</td>
           <td class="${t.pl >= 0 ? 'green' : 'red'}">${t.pl}</td>
-          <td>
-            <button onclick="deleteTrade('${t.date}','${t.ticker}','${t.owner}')">🗑</button>
-          </td>
+         <td>
+  <button onclick="editTrade(${i})">✏️</button>
+  <button onclick="deleteTrade('${t.date}','${t.ticker}','${t.owner}')">🗑</button>
+</td>
         </tr>`;
     });
 
@@ -200,11 +207,36 @@ function renderTable() {
   }
 }
 
-</script>
 
+/******************************
+ * EDIT MODE START
+ ******************************/
+
+let editIndex = null;
+
+function editTrade(index) {
+  let t = trades[index];
+
+  date.value = t.date;
+  ticker.value = t.ticker;
+  owner.value = t.owner;
+  rate.value = t.rate;
+  qty.value = t.qty;
+
+  // Lock ID fields
+  date.disabled = true;
+  ticker.disabled = true;
+  owner.disabled = true;
+
+  editIndex = index;
+}
+
+/******************************
+ * EDIT MODE END
+ ******************************/
 <!-- ================================= -->
 <!-- JAVASCRIPT LOGIC END -->
 <!-- ================================= -->
-
+</script>
 </body>
 </html>
