@@ -49,7 +49,7 @@
 <input type="number" placeholder="Buy Rate" id="rate">
 <input type="number" placeholder="Qty" id="qty">
 
-<button onclick="saveTrade()">💾 Save</button>
+<button onclick="saveTrade()">💾 Save</button> 
 <!-- ===== INPUT SECTION END ===== -->
 
 <hr>
@@ -128,26 +128,29 @@ function loadData() {
 
 /* ===== SAVE / UPDATE TRADE ===== */
 function saveTrade() {
-  let payload = {
+ function saveTrade() {
+  const payload = {
     date: date.value,
     ticker: ticker.value.toUpperCase(),
     owner: owner.value,
     rate: Number(rate.value),
     qty: Number(qty.value)
   };
-// ===== EDIT MODE RESET =====
-if (editIndex !== null) {
-  editIndex = null;
-  date.disabled = false;
-  ticker.disabled = false;
-  owner.disabled = false;
-}
+
   fetch(WEB_APP_URL + "?action=save", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(payload)
-  }).then(() => loadData());
-
-  date.value = ticker.value = owner.value = rate.value = qty.value = "";
+  })
+  .then(res => res.text())
+  .then(msg => {
+    alert(msg);          // ADDED / UPDATED
+    clearInputs();
+    loadData();          // refresh table
+  })
+  .catch(err => alert("Save failed: " + err));
 }
 
 /* ===== DELETE ===== */
