@@ -127,7 +127,7 @@ function loadData() {
 }
 
 /* ===== SAVE / UPDATE TRADE ===== */
- function saveTrade() {
+function saveTrade() {
   const payload = {
     date: date.value,
     ticker: ticker.value.toUpperCase(),
@@ -138,16 +138,10 @@ function loadData() {
 
   fetch(WEB_APP_URL + "?action=save", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
     body: JSON.stringify(payload)
   })
-  .then(res => res.text())
-  .then(msg => {
-    alert(msg);          // ADDED / UPDATED
-    clearInputs();
-    loadData();          // refresh table
+  .then(() => loadData());
+}         // refresh table
   })
   .catch(err => alert("Save failed: " + err));
 }
