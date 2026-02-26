@@ -1,1 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<!-- ================================= -->
+<!-- STOCK DASHBOARD – FRONTEND START -->
+<!-- ================================= -->
+
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Family Stock Dashboard</title>
+
+  <style>
+    body { font-family: Arial; padding: 15px; }
+    h2, h3 { margin-top: 20px; }
+    input, button, select {
+      margin: 5px;
+      padding: 6px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: center;
+    }
+    th { background: #f2f2f2; }
+    .green { color: green; }
+    .red { color: red; }
+  </style>
+</head>
+
+<body>
+
+<h2>📊 Stock Entry</h2>
+
+<!-- ===== INPUT SECTION START ===== -->
+<input type="date" id="date">
+<input placeholder="Ticker (HDFCBANK)" id="ticker">
+<select id="owner">
+  <option value="">Owner</option>
+  <option value="Self">Self</option>
+  <option value="Family1">Family 1</option>
+  <option value="Family2">Family 2</option>
+</select>
+<input type="number" placeholder="Buy Rate" id="rate">
+<input type="number" placeholder="Qty" id="qty">
+
+<button onclick="saveTrade()">💾 Save</button>
+<!-- ===== INPUT SECTION END ===== -->
+
+<hr>
+
+<input placeholder="Search Ticker" id="search" onkeyup="renderTable()">
+
+<!-- ===== MAIN TABLE ===== -->
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Ticker</th>
+      <th>Owner</th>
+      <th>Rate</th>
+      <th>Qty</th>
+      <th>Invested</th>
+      <th>CMP</th>
+      <th>P/L</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<h3>
+  Total Invested: ₹<span id="totalInv">0</span> |
+  Total P/L: ₹<span id="totalPL">0</span>
+</h3>
+
+<!-- ===== OWNER SUMMARY ===== -->
+<h3>👨‍👩‍👧 Owner-wise Summary</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Owner</th>
+      <th>Total Invested</th>
+      <th>Total P/L</th>
+    </tr>
+  </thead>
+  <tbody id="ownerSummary"></tbody>
+</table>
+
+<!-- ================================= -->
+<!-- JAVASCRIPT LOGIC START -->
+<!-- ================================= -->
+
+<script>
+
+/****** PASTE YOUR WEB APP URL BELOW ******/
+const WEB_APP_URL = "https://github.com/sharedemo14/stock-dashboard";
+/****** DO NOT TOUCH BELOW ******/
+
+let trades = [];
+
+/* ===== LOAD DATA ON PAGE OPEN ===== */
+window.onload = loadData;
+
+/* ===== LOAD ALL TRADES ===== */
+function loadData() {
+  fetch(WEB_APP_URL)
+    .then(res => res.json())
+    .then(data => {
+      trades = data.map(r => ({
+        date: r[0],
+        ticker: r[1],
+        owner: r[2],
+        rate: Number(r[3]),
+        qty: Number(r[4]),
+        invested: Number(r[5]),
+        cmp: Number(r[6]),
+        pl: Number(r[7])
+      }));
+      renderTable();
+    });
+}
+
+/* ===== SAVE / UPDATE TRADE ===== */
+function saveTrade() {
+  let payload = {
+    date: date.value,
+    ticker: ticker.value.toUpperCase(),
+    owner: owner.value,
+    rate: Number(rate.value),
+    qty: Number(qty.value)
+  };
+
+  fetch(WEB_APP_URL + "?action=save", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }).then(() => loadData());
+
+  date.value = ticker.value = owner.value = rate.value = qty.value = "";
+}
+
+/* ===== DELETE ===== */
+function deleteTrade(d, t, o) {
+  fetch(WEB_APP_URL + "?action=delete", {
+    method: "POST",
+    body: JSON.stringify({ date: d, ticker: t, owner: o })
+  }).then(() => loadData());
+}
+
+/* ===== RENDER TABLE ===== */
+function renderTable() {
+  let searchText = search.value.toUpperCase();
+  tableBody.innerHTML = "";
+
+  let totalI = 0, totalP = 0;
+  let ownerMap = {};
+
+  trades
+    .filter(t => t.ticker.includes(searchText))
+    .forEach(t => {
+      totalI += t.invested;
+      totalP += t.pl;
+
+      if (!ownerMap[t.owner]) ownerMap[t.owner] = { inv: 0, pl: 0 };
+      ownerMap[t.owner].inv += t.invested;
+      ownerMap[t.owner].pl += t.pl;
+
+      tableBody.innerHTML += `
+        <tr>
+          <td>${t.date}</td>
+          <td>${t.ticker}</td>
+          <td>${t.owner}</td>
+          <td>${t.rate}</td>
+          <td>${t.qty}</td>
+          <td>${t.invested}</td>
+          <td>${t.cmp}</td>
+          <td class="${t.pl >= 0 ? 'green' : 'red'}">${t.pl}</td>
+          <td>
+            <button onclick="deleteTrade('${t.date}','${t.ticker}','${t.owner}')">🗑</button>
+          </td>
+        </tr>`;
+    });
+
+  totalInv.innerText = totalI;
+  totalPL.innerText = totalP;
+
+  ownerSummary.innerHTML = "";
+  for (let o in ownerMap) {
+    ownerSummary.innerHTML += `
+      <tr>
+        <td>${o}</td>
+        <td>${ownerMap[o].inv}</td>
+        <td class="${ownerMap[o].pl >= 0 ? 'green' : 'red'}">${ownerMap[o].pl}</td>
+      </tr>`;
+  }
+}
+
+</script>
+
+<!-- ================================= -->
+<!-- JAVASCRIPT LOGIC END -->
+<!-- ================================= -->
+
+</body>
+</html>
