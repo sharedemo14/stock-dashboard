@@ -206,7 +206,13 @@ function renderTable() {
       </tr>`;
   }
 }
+<script>
 
+/* =================================
+   JAVASCRIPT LOGIC START
+   ================================= */
+
+// your functions here
 
 /******************************
  * EDIT MODE START
@@ -223,7 +229,6 @@ function editTrade(index) {
   rate.value = t.rate;
   qty.value = t.qty;
 
-  // Lock ID fields
   date.disabled = true;
   ticker.disabled = true;
   owner.disabled = true;
@@ -234,9 +239,12 @@ function editTrade(index) {
 /******************************
  * EDIT MODE END
  ******************************/
-<!-- ================================= -->
-<!-- JAVASCRIPT LOGIC END -->
-<!-- ================================= -->
+
+/* =================================
+   JAVASCRIPT LOGIC END
+   ================================= */
+
 </script>
+
 </body>
 </html>
